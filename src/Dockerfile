@@ -274,3 +274,10 @@ RUN \
 # build-related tasks.
 ENTRYPOINT []
 CMD ["bash"]
+
+# Default target: nonroot
+#
+# This makes the nonroot variant the default build target
+########################################################################
+
+FROM nonroot
