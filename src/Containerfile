@@ -116,12 +116,15 @@ RUN curl -fsSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 9.0 -
 ####################################################################################################
 # This section changed from upstream to install dotnet 10 in addition to the 8 and 9 already present
 RUN curl -fsSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 10.0 --install-dir /usr/local/share/dotnet
+# dotnet does not have permission to run by default so give it a location where it can work
+ENV DOTNET_CLI_HOME=/tmp/dotnet
 ####################################################################################################
 ENV PATH "/usr/local/share/dotnet:${PATH}"
 ENV DOTNET_ROOT /usr/local/share/dotnet
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT 1
 # Allow newer dotnet version (e.g. 6) to build projects targeting older frameworks (v3.1)
 ENV DOTNET_ROLL_FORWARD Major
+
 
 # Install Helm
 # Explicitly set env variables that helm reads to their defaults, so that subsequent calls to
