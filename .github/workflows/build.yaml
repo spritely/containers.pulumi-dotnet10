@@ -20,4 +20,4 @@ jobs:
           registryHost: docker.io
           imageNames: spritelydev/pulumi-dotnet10
           context: ./src
-          dockerfile: ./src/Dockerfile
+          dockerfile: ./src/Containerfile
