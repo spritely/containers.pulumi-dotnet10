@@ -1,3 +1,10 @@
+####################################################################################################
+# Based on https://github.com/pulumi/pulumi-docker-containers/blob/main/docker/pulumi/Dockerfile
+# Modified to add 4 things: .NET 10, to add renovate to update the pulumi version, and defined the
+# base image user as 'pulumi', and to remove the extra nonroot and build-environment stages so we
+# always use base.
+####################################################################################################
+
 FROM debian:trixie AS base
 
 # These values are passed in by the build system automatically. The options are: arm64, amd64
@@ -116,8 +123,6 @@ RUN curl -fsSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 9.0 -
 ####################################################################################################
 # This section changed from upstream to install dotnet 10 in addition to the 8 and 9 already present
 RUN curl -fsSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 10.0 --install-dir /usr/local/share/dotnet
-# dotnet does not have permission to run by default so give it a location where it can work
-ENV DOTNET_CLI_HOME=/tmp/dotnet
 ####################################################################################################
 ENV PATH "/usr/local/share/dotnet:${PATH}"
 ENV DOTNET_ROOT /usr/local/share/dotnet
@@ -187,104 +192,18 @@ RUN curl -fsSL https://get.pulumi.com/ | bash -s -- --version $PULUMI_VERSION &&
 RUN pulumi plugin install analyzer policy-opa
 ENV PATH="/pulumi/bin:${PATH}"
 
+####################################################################################################
+# This section changed from upstream to make sure that the image we build runs as the correct user
+# Support running as non-root (required by Pulumi Kubernetes Operator workspace pods)
+RUN addgroup --gid 1000 pulumi && adduser --uid 1000 --gid 1000 --disabled-password --gecos "" pulumi
+USER pulumi:pulumi
+ENV USER=pulumi
+####################################################################################################
+
 # I think it's safe to say if we're using this mega image, we want pulumi
 ENTRYPOINT ["pulumi"]
 
-# Nonroot variant of the image
-#
-# This sets up a non-root user and uses that user for the image.
-########################################################################
-
-FROM base AS nonroot
-
-LABEL "repository"="https://github.com/pulumi/pulumi"
-LABEL "homepage"="https://pulumi.com"
-LABEL "maintainer"="Pulumi Team <team@pulumi.com>"
-LABEL org.opencontainers.image.description="The Pulumi CLI, in a Docker container."
-
-ARG UID=1000
-ARG GID=1000
-RUN addgroup --gid $GID pulumi && \
-  adduser --uid $UID --gid $GID --disabled-password --gecos "" pulumi
-USER pulumi:pulumi
-# Update env vars for the non-root user
-ENV GOPATH=/home/pulumi/go
-ENV XDG_CONFIG_HOME=/home/pulumi/.config
-ENV XDG_CACHE_HOME=/home/pulumi/.cache
-# Re-run the helm setup for the non-root user
-RUN helm repo add stable https://charts.helm.sh/stable && \
-  helm repo update
-
-# Pulumi Bridged Terraform Provider Build Environment
-#
-# Bundles together everything needed to build a Terraform-based
-# provider.
-#
-# See https://github.com/pulumi/pulumi-docker-containers/issues/111
-# for more background.
-########################################################################
-
-FROM base AS build-environment
-
-ARG TARGETARCH
-
-# renovate: datasource=github-releases depName=pulumi/pulumictl
-ENV PULUMICTL_VERSION v0.0.50
-# renovate: datasource=github-releases depName=golangci/golangci-lint
-ENV GOLANGCI_LINT_VERSION v2.11.4
-# renovate: datasource=github-releases depName=goreleaser/goreleaser
-ENV GORELEASER_VERSION v2.15.2
-
-SHELL ["/bin/bash", "-o", "errexit", "-o", "nounset", "-o", "pipefail", "-c"]
-
-RUN \
-  # Setup environment variables for architecture-specific packages
-  if [ "$TARGETARCH" = "arm64" ]; then \
-    GORELEASER_ARCH=arm64; \
-  else \
-    GORELEASER_ARCH=x86_64; \
-  fi && \
-  curl \
-    --proto "=https" \
-    --tlsv1.2 \
-    --location \
-    --fail \
-    --verbose \
-    --output "pulumictl.tar.gz" \
-    "https://github.com/pulumi/pulumictl/releases/download/${PULUMICTL_VERSION}/pulumictl-${PULUMICTL_VERSION}-linux-${TARGETARCH}.tar.gz" && \
-    mkdir pulumictl_extraction && \
-    tar --extract --gunzip --verbose --directory pulumictl_extraction --file pulumictl.tar.gz && \
-    mv pulumictl_extraction/pulumictl /usr/local/bin/pulumictl && \
-    chmod a+x /usr/local/bin/pulumictl && \
-    rm -Rf pulumictl_extraction && \
-    rm pulumictl.tar.gz && \
-    # Install golangci-lint
-    curl --proto "=https" \
-    --tlsv1.2 \
-    --silent \
-    --show-error \
-    --fail \
-    --location \
-    https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh \
-    | sh -s -- -b "$(go env GOPATH)/bin" "${GOLANGCI_LINT_VERSION}" && \
-    # Install goreleaser
-    curl \
-    --proto "=https" \
-    --tlsv1.2 \
-    --location \
-    --fail \
-    --verbose \
-    --output "goreleaser.tar.gz" \
-    "https://github.com/goreleaser/goreleaser/releases/download/${GORELEASER_VERSION}/goreleaser_Linux_${GORELEASER_ARCH}.tar.gz" && \
-    mkdir goreleaser_extraction && \
-    tar --extract --gunzip --verbose --directory goreleaser_extraction --file goreleaser.tar.gz && \
-    mv goreleaser_extraction/goreleaser /usr/local/bin/goreleaser && \
-    chmod a+x /usr/local/bin/goreleaser && \
-    rm -Rf goreleaser_extraction && \
-    rm goreleaser.tar.gz
-
-# The entrypoint of the base image is `pulumi`; we don't
-# want that for this usecase, since we'll be performing different
-# build-related tasks.
-ENTRYPOINT []
-CMD ["bash"]
+####################################################################################################
+# This section changed from upstream to remove everything below this point so that we use base image
+# and not nonroot or build-environment
+####################################################################################################
