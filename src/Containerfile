@@ -181,7 +181,7 @@ RUN corepack install -g pnpm@^10 yarn@1
 # that renovate can auto-update it and --version is never passed empty to the install script
 # Pulumi releases: https://www.pulumi.com/docs/install/versions/
 # renovate: datasource=github-releases depName=pulumi/pulumi extractVersion=^v(?<version>.*)$
-ARG PULUMI_VERSION=3.247.0
+ARG PULUMI_VERSION=3.248.0
 #################################################################################################
 
 # Install the Pulumi SDK, including the CLI and language runtimes.
