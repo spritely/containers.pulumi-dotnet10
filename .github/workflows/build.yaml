@@ -13,7 +13,7 @@ jobs:
 
     steps:
       - name: Build and publish container
-        uses: spritely/build/container@a09c94238002ca699a096883666a4ce1d249dfa7 # v0.27.12
+        uses: spritely/build/container@ca6231a549f0d2e49774ccc208b77f0f74518482 # v0.27.15
         with:
           registryUsername: ${{ secrets.DOCKER_HUB_USERNAME }}
           registryPassword: ${{ secrets.DOCKER_HUB_TOKEN }}
